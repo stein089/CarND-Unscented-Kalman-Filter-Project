@@ -1,9 +1,11 @@
 #include <uWS/uWS.h>
-#include <iostream>
 #include "json.hpp"
 #include <math.h>
 #include "ukf.h"
 #include "tools.h"
+#include <iostream>
+#include <fstream>
+
 
 using namespace std;
 
@@ -37,6 +39,12 @@ int main()
   Tools tools;
   vector<VectorXd> estimations;
   vector<VectorXd> ground_truth;
+
+  std::ofstream file;
+  file.open("NIS_radar.txt", std::ofstream::out | std::ofstream::trunc);
+  file.close();
+  file.open("NIS_laser.txt", std::ofstream::out | std::ofstream::trunc);
+  file.close();
 
   h.onMessage([&ukf,&tools,&estimations,&ground_truth](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -90,7 +98,7 @@ int main()
           		iss >> timestamp;
           		meas_package.timestamp_ = timestamp;
           }
-          float x_gt;
+        float x_gt;
     	  float y_gt;
     	  float vx_gt;
     	  float vy_gt;
@@ -129,23 +137,31 @@ int main()
 
     	  VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
 
-          json msgJson;
-          msgJson["estimate_x"] = p_x;
-          msgJson["estimate_y"] = p_y;
-          msgJson["rmse_x"] =  RMSE(0);
-          msgJson["rmse_y"] =  RMSE(1);
-          msgJson["rmse_vx"] = RMSE(2);
-          msgJson["rmse_vy"] = RMSE(3);
-          auto msg = "42[\"estimate_marker\"," + msgJson.dump() + "]";
-          // std::cout << msg << std::endl;
-          ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+        json msgJson;
+        msgJson["estimate_x"] = p_x;
+        msgJson["estimate_y"] = p_y;
+        msgJson["rmse_x"] =  RMSE(0);
+        msgJson["rmse_y"] =  RMSE(1);
+        msgJson["rmse_vx"] = RMSE(2);
+        msgJson["rmse_vy"] = RMSE(3);
+        auto msg = "42[\"estimate_marker\"," + msgJson.dump() + "]";
+        // std::cout << msg << std::endl;
+        ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 
-          if (measurement_pack_list[k].sensor_type_ == MeasurementPackage::LASER) {
-            out_file_ << ukf.NIS_laser_ << "\n";
-          } else if (measurement_pack_list[k].sensor_type_ == MeasurementPackage::RADAR) {
-            out_file_ << ukf.NIS_radar_ << "\n";
-          }
 
+        // NIS Radar 3 DOF: 95% less than 7.815
+        // NIS Laser 2 DOF: 95% less than 5.991
+        if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
+          std::ofstream file;
+          file.open("NIS_laser.txt", std::ios_base::app);
+          file << ukf.NIS_laser_ << std::endl;
+          file.close();
+        } else if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
+          std::ofstream file;
+          file.open("NIS_radar.txt", std::ios_base::app);
+          file << ukf.NIS_radar_ << std::endl;
+          file.close();
+        }
 
         }
       } else {
