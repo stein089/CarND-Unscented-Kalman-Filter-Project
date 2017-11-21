@@ -139,7 +139,14 @@ int main()
           auto msg = "42[\"estimate_marker\"," + msgJson.dump() + "]";
           // std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
-	  
+
+          if (measurement_pack_list[k].sensor_type_ == MeasurementPackage::LASER) {
+            out_file_ << ukf.NIS_laser_ << "\n";
+          } else if (measurement_pack_list[k].sensor_type_ == MeasurementPackage::RADAR) {
+            out_file_ << ukf.NIS_radar_ << "\n";
+          }
+
+
         }
       } else {
         
@@ -160,6 +167,7 @@ int main()
     }
     else
     {
+      // i guess this should be done more gracefully?
       // i guess this should be done more gracefully?
       res->end(nullptr, 0);
     }
